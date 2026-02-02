@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Htun Myat Aung File</title>
+
+<style>
+<h1 style="top-margin:350;color:black;> HMA's file </h1>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f3f3;
+}
+.toolbar {
+  background: #fff;
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+}
+button, select {
+  padding: 6px 10px;
+  margin-right: 5px;
+  cursor: pointer;
+}
+.editor {
+  width: 80%;
+  height: 70vh;
+  margin: 20px auto;
+  padding: 15px;
+  background: white;
+  border: 1px solid #ccc;
+  outline: none;
+  overflow-y: auto;
+}
+h1 {
+  margin-top: 50px;
+  color: black;
+  text-align: center;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="toolbar">
+  <button id="bold"><b>B</b></button>
+  <button id="italic"><i>I</i></button>
+  <button id="underline"><u>U</u></button>
+
+  <select id="font">
+    <option value="">Font Size</option>
+    <option value="14px">Normal</option>
+    <option value="18px">Large</option>
+    <option value="24px">Extra Large</option>
+  </select>
+
+  <button id="save">Save</button>
+</div>
+
+<div id="editor" class="editor" contenteditable="true">
+Start typing here...
+</div>
+
+<script type="module">
+/* ================= FIREBASE ================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBYgbJXWTqBqwo_Z5GAUnjXxuloAvzD9XE",
+  authDomain: "text-1cbd5.firebaseapp.com",
+  projectId: "text-1cbd5",
+  storageBucket: "text-1cbd5.firebasestorage.app",
+  messagingSenderId: "560400795619",
+  appId: "1:560400795619:web:94448b7160d8ca7f19c2d6"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const docRef = doc(db, "editor", "shared");
+
+/* ================= STATE ================= */
+const editor = document.getElementById("editor");
+let isLocalChange = false;
+
+/* ================= FIRESTORE SYNC ================= */
+onSnapshot(docRef, snap => {
+  if (!snap.exists()) return;
+
+  if (isLocalChange) {
+    isLocalChange = false;
+    return;
+  }
+
+  const remote = snap.data().text;
+  if (editor.innerHTML !== remote) {
+    editor.innerHTML = remote;
+  }
+});
+
+/* ================= AUTO SAVE ================= */
+let timer;
+editor.addEventListener("input", () => {
+  isLocalChange = true;
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    setDoc(docRef, { text: editor.innerHTML });
+  }, 400);
+});
+
+/* ================= MANUAL SAVE ================= */
+document.getElementById("save").onclick = async () => {
+  isLocalChange = true;
+  await setDoc(docRef, { text: editor.innerHTML });
+  alert("Saved online!");
+};
+
+/* ================= FORMAT HELPERS ================= */
+function findAncestor(node, tag) {
+  while (node && node !== editor) {
+    if (node.nodeType === 1 && node.tagName.toLowerCase() === tag) {
+      return node;
+    }
+    node = node.parentNode;
+  }
+  return null;
+}
+
+/* ================= TOGGLE FORMAT ================= */
+function toggleFormat(tag) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+
+  const range = sel.getRangeAt(0);
+  if (range.collapsed) return;
+
+  let node = range.startContainer;
+  if (node.nodeType === 3) node = node.parentNode;
+
+  const existing = findAncestor(node, tag);
+
+  if (existing) {
+    // REMOVE formatting
+    const parent = existing.parentNode;
+    while (existing.firstChild) {
+      parent.insertBefore(existing.firstChild, existing);
+    }
+    parent.removeChild(existing);
+  } else {
+    // APPLY formatting
+    const el = document.createElement(tag);
+    el.appendChild(range.extractContents());
+    range.insertNode(el);
+  }
+}
+
+/* ================= FONT SIZE ================= */
+function applyFont(size) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+
+  const range = sel.getRangeAt(0);
+  if (range.collapsed) return;
+
+  const span = document.createElement("span");
+  span.style.fontSize = size;
+  span.appendChild(range.extractContents());
+  range.insertNode(span);
+}
+
+/* ================= BUTTONS ================= */
+document.getElementById("bold").onclick = () => toggleFormat("b");
+document.getElementById("italic").onclick = () => toggleFormat("i");
+document.getElementById("underline").onclick = () => toggleFormat("u");
+
+document.getElementById("font").onchange = e => {
+  if (e.target.value) {
+    applyFont(e.target.value);
+    e.target.value = "";
+  }
+};
+</script>
+<h1 style="margin-top:350px;color:black;text-align:center> HMA's file </h1>
+
+
+</body>
+</html>
